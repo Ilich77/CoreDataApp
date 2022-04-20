@@ -10,11 +10,11 @@ import CoreData
 
 class GoalListViewController: UITableViewController {
     
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    
+    //MARK: - Private Properties
     private var goalList: [Goal] = []
     private let cellID = "Goal"
 
+    //MARK: - Override Methods
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
@@ -23,6 +23,7 @@ class GoalListViewController: UITableViewController {
         fetchData()
     }
 
+    //MARK: - Private Methods
     private func setupNavigationBar() {
         title = "Goal List"
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -54,11 +55,8 @@ class GoalListViewController: UITableViewController {
     }
     
     private func fetchData() {
-        let fetchRequest = Goal.fetchRequest()
-        do {
-            goalList = try viewContext.fetch(fetchRequest)
-        } catch {
-            print(error.localizedDescription)
+        StorageManager.shared.fetchData { goalList in
+            self.goalList = goalList
         }
     }
     
@@ -92,38 +90,26 @@ class GoalListViewController: UITableViewController {
     }
     
     private func save(_ goalName: String) {
-        let goal = Goal(context: viewContext)
-        goal.title = goalName
-        goalList.append(goal)
+        
+        StorageManager.shared.saveData(for: goalName) { goal in
+            self.goalList.append(goal)
+        }
         
         let cellIndex = IndexPath(row: goalList.count - 1, section: 0)
         tableView.insertRows(at: [cellIndex], with: .automatic)
-        
-        if viewContext.hasChanges {
-            do {
-                try viewContext.save()
-            } catch {
-                print(error.localizedDescription)
-            }
-        }
     }
     
     private func change(_ goalName:  String, _ index: Int) {
         let goal = goalList[index]
         goal.title = goalName
-        
-        if viewContext.hasChanges {
-            do {
-                try viewContext.save()
-            } catch {
-                print(error.localizedDescription)
-            }
-        }
+        StorageManager.shared.changeData()
         tableView.reloadData()
     }
 }
 
+// MARK: - UITAbleViewDataSource
 extension GoalListViewController {
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         goalList.count
     }
@@ -148,17 +134,9 @@ extension GoalListViewController {
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             let goal = goalList[indexPath.row]
-            viewContext.delete(goal)
             goalList.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .automatic)
-        }
-        
-        if viewContext.hasChanges {
-            do {
-                try viewContext.save()
-            } catch {
-                print(error.localizedDescription)
-            }
+            StorageManager.shared.deleteData(for: goal)
         }
     }
 }
